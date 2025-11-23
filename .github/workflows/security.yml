@@ -119,5 +119,21 @@ jobs:
         run: |
           echo "## 🔒 Security Scan Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Pipeline executed successfully" >> $GITHUB_STEP_SUMMARY
-          echo "📊 Check job results above" >> $GITHUB_STEP_SUMMARY
+          echo "### Job Results:" >> $GITHUB_STEP_SUMMARY
+          echo "- SAST: ${{ needs.sast.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- SCA: ${{ needs.sca.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Secrets: ${{ needs.secrets.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Container Scan: ${{ needs.container-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.sast.result }}" == "failure" ]] || \
+             [[ "${{ needs.sca.result }}" == "failure" ]] || \
+             [[ "${{ needs.secrets.result }}" == "failure" ]] || \
+             [[ "${{ needs.container-scan.result }}" == "failure" ]]; then
+            echo "❌ **Security issues detected!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Please review the failed jobs above" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ All security checks passed" >> $GITHUB_STEP_SUMMARY
+          fi
