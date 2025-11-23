@@ -58,9 +58,8 @@ jobs:
       - name: npm audit
         working-directory: ./src
         run: |
-          npm audit --json > audit.json || true
+          npm audit --json > audit.json
           npm audit
-        continue-on-error: true
       
       - uses: actions/upload-artifact@v4
         with:
@@ -103,7 +102,7 @@ jobs:
         with:
           image-ref: vuln-app:${{ github.sha }}
           format: 'table'
-          exit-code: '0'
+          exit-code: '1'
           severity: 'CRITICAL,HIGH'
 
   # ═══════════════════════════════════════
