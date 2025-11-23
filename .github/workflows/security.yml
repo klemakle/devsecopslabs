@@ -5,6 +5,8 @@ on: [push, pull_request]
 jobs:
   # ═══════════════════════════════════════
   # 1. BUILD
+  # Construit l'image Docker de l'application
+  # Permet de valider que le code compile et de préparer l'image pour le scan de vulnérabilités
   # ═══════════════════════════════════════
   build:
     name: 🏗️ Build
@@ -25,7 +27,9 @@ jobs:
           path: image.tar
 
   # ═══════════════════════════════════════
-  # 2. SAST - Analyse statique
+  # 2. SAST - Analyse statique du code (Static Application Security Testing)
+  # Détecte les vulnérabilités dans le CODE SOURCE : injection SQL, XSS, failles de sécurité
+  # Outil : Semgrep avec règles OWASP Top 10, security-audit, et détection de secrets
   # ═══════════════════════════════════════
   sast:
     name: 🔍 SAST
@@ -42,25 +46,31 @@ jobs:
             p/owasp-top-ten
 
   # ═══════════════════════════════════════
-  # 3. SCA - Scan des dépendances
+  # 3. SCA - Analyse des dépendances (Software Composition Analysis)
+  # Détecte les vulnérabilités dans les BIBLIOTHÈQUES et packages tiers (npm, etc.)
+  # Outil : npm audit pour vérifier les CVE connues dans les dépendances Node.js
   # ═══════════════════════════════════════
   sca:
     name: 📦 SCA
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      
+
+      - name: Install dependencies
+        working-directory: ./src
+        run: npm install
+
       - name: npm audit
         working-directory: ./src
         run: |
           npm audit --json > audit.json
           npm audit
-      
+
       - uses: actions/upload-artifact@v4
         with:
           name: npm-audit
@@ -68,6 +78,9 @@ jobs:
 
   # ═══════════════════════════════════════
   # 4. SECRET DETECTION
+  # Détecte les SECRETS accidentellement committés : clés API, mots de passe, tokens
+  # Outil : Gitleaks qui scanne tout l'historique Git (fetch-depth: 0)
+  # ⚠️ Critique : évite les fuites de credentials et violations de sécurité
   # ═══════════════════════════════════════
   secrets:
     name: 🔐 Secrets
@@ -84,6 +97,9 @@ jobs:
 
   # ═══════════════════════════════════════
   # 5. CONTAINER SCAN
+  # Scanne l'IMAGE DOCKER pour détecter les vulnérabilités dans l'OS et les packages système
+  # Outil : Trivy qui analyse les CVE dans les couches Docker (image de base, packages installés)
+  # Recherche les vulnérabilités CRITICAL et HIGH uniquement
   # ═══════════════════════════════════════
   container-scan:
     name: 🐳 Container Scan
@@ -106,7 +122,10 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
   # ═══════════════════════════════════════
-  # 6. RAPPORT
+  # 6. RAPPORT FINAL
+  # Génère un résumé de tous les scans de sécurité
+  # Vérifie le statut de chaque job et fait ÉCHOUER le pipeline si des vulnérabilités sont détectées
+  # S'exécute toujours (if: always()) même si des jobs précédents ont échoué
   # ═══════════════════════════════════════
   report:
     name: 📊 Report
