@@ -133,6 +133,51 @@ jobs:
     needs: [sast, sca, secrets, container-scan]
     if: always()
     steps:
+      - name: Generate JSON Report
+        run: |
+          cat > security-report.json <<EOF
+          {
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "repository": "${{ github.repository }}",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "workflow_run": "${{ github.run_id }}",
+            "results": {
+              "sast": {
+                "status": "${{ needs.sast.result }}",
+                "tool": "Semgrep"
+              },
+              "sca": {
+                "status": "${{ needs.sca.result }}",
+                "tool": "npm audit"
+              },
+              "secrets": {
+                "status": "${{ needs.secrets.result }}",
+                "tool": "Gitleaks"
+              },
+              "container_scan": {
+                "status": "${{ needs.container-scan.result }}",
+                "tool": "Trivy"
+              }
+            },
+            "summary": {
+              "total_checks": 4,
+              "passed": $(echo '${{ needs.sast.result }} ${{ needs.sca.result }} ${{ needs.secrets.result }} ${{ needs.container-scan.result }}' | grep -o "success" | wc -l),
+              "failed": $(echo '${{ needs.sast.result }} ${{ needs.sca.result }} ${{ needs.secrets.result }} ${{ needs.container-scan.result }}' | grep -o "failure" | wc -l),
+              "overall_status": "$([[ "${{ needs.sast.result }}" == "failure" ]] || [[ "${{ needs.sca.result }}" == "failure" ]] || [[ "${{ needs.secrets.result }}" == "failure" ]] || [[ "${{ needs.container-scan.result }}" == "failure" ]] && echo "FAILED" || echo "PASSED")"
+            }
+          }
+          EOF
+
+          echo "📄 Security Report Generated:"
+          cat security-report.json | jq '.'
+
+      - name: Upload JSON Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: security-report.json
+
       - name: Summary
         run: |
           echo "## 🔒 Security Scan Complete" >> $GITHUB_STEP_SUMMARY
@@ -142,6 +187,8 @@ jobs:
           echo "- SCA: ${{ needs.sca.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Secrets: ${{ needs.secrets.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Container Scan: ${{ needs.container-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📥 **JSON Report available in artifacts**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ needs.sast.result }}" == "failure" ]] || \
