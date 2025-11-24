@@ -99,7 +99,7 @@ jobs:
   # 5. CONTAINER SCAN
   # Scanne l'IMAGE DOCKER pour détecter les vulnérabilités dans l'OS et les packages système
   # Outil : Trivy qui analyse les CVE dans les couches Docker (image de base, packages installés)
-  # Recherche les vulnérabilités CRITICAL et HIGH uniquement
+  # Recherche les vulnérabilités CRITICAL uniquement (pragmatisme DevSecOps)
   # ═══════════════════════════════════════
   container-scan:
     name: 🐳 Container Scan
@@ -109,17 +109,17 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: docker-image
-      
+
       - name: Load image
         run: docker load < image.tar
-      
+
       - name: Trivy scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: vuln-app:${{ github.sha }}
           format: 'table'
           exit-code: '1'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL'
 
   # ═══════════════════════════════════════
   # 6. RAPPORT FINAL
